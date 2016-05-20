@@ -15,12 +15,13 @@
 import json
 import os
 import sys
+import unittest
 import yaml
 
 from deepdiff import DeepDiff
 from pprint import pprint
 from ansible.plugins.action.synchronize import ActionModule
-from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
+#from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
 
 # Getting the incoming and outgoing task vars
 
@@ -60,9 +61,13 @@ class PlayContextMock(object):
     shell = None
     private_key_file = None
     become = False
+    become_user = 'root'
     check_mode = False
     no_log = None
     diff = None
+    remote_addr = None
+    remote_user = None
+    password = None
 
 class ModuleLoaderMock(object):
     def find_plugin(self, module_name, mod_type):
@@ -74,7 +79,7 @@ class SharedLoaderMock(object):
 class SynchronizeTester(object):
     task = TaskMock()
     connection = ConnectionMock()
-    play_context = PlayContextMock()
+    _play_context = PlayContextMock()
     loader = None
     templar = None
     shared_loader_obj = SharedLoaderMock()
@@ -85,8 +90,6 @@ class SynchronizeTester(object):
     def _execute_module(self, module_name, task_vars=None):
         self.execute_called = True
         self.final_task_vars = task_vars
-        #print("MOCKED EXECUTE MODULE!!!")
-        #pprint(task_vars)
         return {}
     
     def runtest(self, fixturepath='fixtures/basic'):
@@ -95,6 +98,20 @@ class SynchronizeTester(object):
 	with open(metapath, 'rb') as f:
 	    fdata = f.read()
 	test_meta = yaml.load(fdata)
+
+	# load inital play context vars
+        if 'play_context' in test_meta:
+            if test_meta['play_context']:
+                self.task.args = {}
+                for k,v in test_meta['play_context'].iteritems():
+                    setattr(self._play_context, k, v)
+
+	# load inital task vars
+        if 'task_args' in test_meta:
+            if test_meta['task_args']:
+                self.task.args = {}
+                for k,v in test_meta['task_args'].iteritems():
+                    self.task.args[k] = v
 
 	# load inital task vars
 	invarspath = os.path.join(fixturepath, 
@@ -115,11 +132,12 @@ class SynchronizeTester(object):
             setattr(self.connection, k, v)
 
 	# fixup the hostvars
-	for k,v in test_meta['hostvars'].iteritems():
-            in_task_vars['hostvars'][k] = v
+        if test_meta['hostvars']:
+            for k,v in test_meta['hostvars'].iteritems():
+                in_task_vars['hostvars'][k] = v
 
 	# initalize and run the module
-        SAM = ActionModule(self.task, self.connection, self.play_context, 
+        SAM = ActionModule(self.task, self.connection, self._play_context, 
                            self.loader, self.templar, self.shared_loader_obj)
         SAM._execute_module = self._execute_module
         result = SAM.run(task_vars=in_task_vars)
@@ -130,8 +148,15 @@ class SynchronizeTester(object):
             assert value, check
 
 
-        import epdb; epdb.st()
+class TestSynchronizeAction(unittest.TestCase):
 
+    def test_basic(self):
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic')
+
+    def test_basic_vagrant(self):
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic_vagrant')
 
 
 if __name__ == "__main__":
