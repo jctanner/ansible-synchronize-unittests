@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import json
+import os
+import sys
+
+from pprint import pprint
+from ansible.plugins.action.synchronize import ActionModule
+from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
+
+#class ArgsMock(object):
+#    foo = None
+
+class TaskMock(object):
+    args = {'src': u'/tmp/deleteme', 'dest': '/tmp/deleteme'}
+    async = None
+
+class StdinMock(object):
+    shell = None
+
+class ConnectionMock(object):
+    transport = 'ssh'
+    _new_stdin = StdinMock()
+
+class PlayContextMock(object):
+    shell = 'sh'
+    private_key_file = None
+    become = False
+    check_mode = False
+    no_log = None
+    diff = None
+
+class ModuleLoaderMock(object):
+    def find_plugin(self, module_name, mod_type):
+        pass
+
+class SharedLoaderMock(object):
+    module_loader = ModuleLoaderMock()    
+
+def _execute_module(module_name, task_vars=None):
+    print("MOCKED EXECUTE MODULE!!!")
+    pprint(task_vars)
+    return {}
+
+task = TaskMock()
+connection = ConnectionMock()
+play_context = PlayContextMock()
+loader = None
+templar = None
+shared_loader_obj = SharedLoaderMock()
+
+
+with open('fixtures/basic/taskvars_in.json', 'rb') as f:
+    fdata = f.read()
+task_vars = json.loads(fdata)
+
+# Need to add a property for localhost's shell tpye
+task_vars['hostvars']['127.0.0.1'] = {'ansible_shell_type': 'sh'}
+task_vars['hostvars']['::1'] = {'ansible_shell_type': 'sh'}
+task_vars['hostvars']['localhost'] = {'ansible_shell_type': 'sh'}
+
+
+SAM = ActionModule(task, connection, play_context, loader, templar, shared_loader_obj)
+SAM._execute_module = _execute_module
+result = SAM.run(task_vars=task_vars)
+pprint(result)

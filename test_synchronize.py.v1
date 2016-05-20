@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+
+import json
+import os
+import sys
+
+from deepdiff import DeepDiff
+from pprint import pprint
+from ansible.plugins.action.synchronize import ActionModule
+from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
+
+# Getting the incoming and outgoing task vars
+
+'''
+import copy
+safe_vars = {}
+for k,v in task_vars.iteritems():
+    if k not in ['vars', 'hostvars']:
+        safe_vars[k] = copy.deepcopy(v)
+    else:    
+        sdata = str(v)
+        newv = eval(sdata)
+        safe_vars[k] = newv
+
+import json
+with open('task_vars.json', 'wb') as f:
+    f.write(json.dumps(safe_vars, indent=2))
+'''
+
+
+
+
+class TaskMock(object):
+    args = {'src': u'/tmp/deleteme', 'dest': '/tmp/deleteme'}
+    async = None
+
+class StdinMock(object):
+    shell = None
+
+class ConnectionMock(object):
+    ismock = True
+    transport = 'ssh'
+    _new_stdin = StdinMock()
+
+class PlayContextMock(object):
+    shell = None
+    private_key_file = None
+    become = False
+    check_mode = False
+    no_log = None
+    diff = None
+
+class ModuleLoaderMock(object):
+    def find_plugin(self, module_name, mod_type):
+        pass
+
+class SharedLoaderMock(object):
+    module_loader = ModuleLoaderMock()    
+
+class SynchronizeTester(object):
+    task = TaskMock()
+    connection = ConnectionMock()
+    play_context = PlayContextMock()
+    loader = None
+    templar = None
+    shared_loader_obj = SharedLoaderMock()
+
+    final_task_vars = None
+    execute_called = False
+
+    def _execute_module(self, module_name, task_vars=None):
+        self.execute_called = True
+        self.final_task_vars = task_vars
+        #print("MOCKED EXECUTE MODULE!!!")
+        #pprint(task_vars)
+        return {}
+    
+    def runtest(self):
+
+        with open('fixtures/basic/taskvars_in.json', 'rb') as f:
+            fdata = f.read()
+        in_task_vars = json.loads(fdata)
+
+        with open('fixtures/basic/taskvars_out.json', 'rb') as f:
+            fdata = f.read()
+        out_task_vars = json.loads(fdata)
+
+        # Need to add localhost(s) to hostvars
+        in_task_vars['hostvars']['127.0.0.1'] = {}
+        in_task_vars['hostvars']['::1'] = {}
+        in_task_vars['hostvars']['localhost'] = {}
+
+        SAM = ActionModule(self.task, self.connection, self.play_context, 
+                           self.loader, self.templar, self.shared_loader_obj)
+        SAM._execute_module = self._execute_module
+        result = SAM.run(task_vars=in_task_vars)
+        #pprint(result)
+
+        # (Epdb) pp connection_loader.get('local', self._play_context, new_stdin)
+        # <ansible.plugins.connection.local.Connection object at 0x7f13562da890>
+        # new_connection = connection_loader.get('local', self._play_context, new_stdin)
+	# self._connection = new_connection
+
+	assert not hasattr(SAM._connection, 'ismock')
+        assert SAM._connection.transport == 'local'
+        assert self.play_context.shell == 'sh'
+        assert self.execute_called
+        assert self.task.args['_local_rsync_path'] == 'rsync'
+        assert self.task.args['src'] == '/tmp/deleteme'
+        assert self.task.args['dest'] == 'root@el6host:/tmp/deleteme'
+
+
+	'''
+	(Epdb) pprint(DeepDiff(self.final_task_vars, out_task_vars), indent=2)
+	{ 'dic_item_added': set([u"root['ansible_python_interpreter']"]),
+	  'dic_item_removed': set([ u"root['hostvars']['127.0.0.1']",
+				    u"root['hostvars']['::1']",
+				    u"root['hostvars']['localhost']"]),
+	  'iterable_item_added': { u"root['hostvars']['el6host']['groups']['all'][1]": u'::1',
+				   u"root['hostvars']['el6host']['groups']['ungrouped'][1]": u'::1',
+				   u"root['vars']['hostvars']['el6host']['groups']['all'][1]": u'::1',
+				   u"root['vars']['hostvars']['el6host']['groups']['ungrouped'][1]": u'::1'}}
+	'''
+
+        #import epdb; epdb.st()
+
+
+
+if __name__ == "__main__":
+    SynchronizeTester().runtest()
