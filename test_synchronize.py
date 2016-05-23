@@ -85,6 +85,7 @@ class SharedLoaderMock(object):
 class SynchronizeTester(object):
 
     task = TaskMock()
+    #import epdb; epdb.st()
     connection = ConnectionMock()
     _play_context = PlayContextMock()
     loader = None
@@ -119,8 +120,9 @@ class SynchronizeTester(object):
                 self.task.args = {}
                 for k,v in test_meta['_task'].iteritems():
                     #import epdb; epdb.st()
+                    if v == 'None':
+                        v = None
                     setattr(self.task, k, v)
-        #import epdb; epdb.st()
 
 	# load inital task vars
         if 'task_args' in test_meta:
@@ -128,7 +130,7 @@ class SynchronizeTester(object):
                 self.task.args = {}
                 for k,v in test_meta['task_args'].iteritems():
                     self.task.args[k] = v
-        #import epdb; epdb.st()
+
 	# load inital task vars
 	invarspath = os.path.join(fixturepath, 
 		test_meta.get('fixtures', {}).get('taskvars_in', 'taskvars_in.json'))
@@ -152,7 +154,6 @@ class SynchronizeTester(object):
             for k,v in test_meta['hostvars'].iteritems():
                 in_task_vars['hostvars'][k] = v
 
-        #import epdb; epdb.st()
 	# initalize and run the module
         SAM = ActionModule(self.task, self.connection, self._play_context, 
                            self.loader, self.templar, self.shared_loader_obj)
@@ -162,12 +163,9 @@ class SynchronizeTester(object):
 	# run assertions
 	for check in test_meta['asserts']:
             value = eval(check)
-            #print(check, value)
-            #if 'path' in check and not value:
+            #if not value:
+            #    print(check, value)
             #    import epdb; epdb.st()
-            if not value:
-                print(check, value)
-                import epdb; epdb.st()
             assert value, check
 
 
@@ -181,13 +179,26 @@ class TestSynchronizeAction(unittest.TestCase):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_become')
 
+    def test_basic_become_cli(self):
+        # --become on the cli sets _play_context.become
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic_become_cli')
+
     def test_basic_vagrant(self):
+        # simple vagrant example
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant')
 
     def test_basic_vagrant_sudo(self):
+        # vagrant plus sudo
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant_sudo')
+
+    def test_basic_vagrant_become_cli(self):
+        # vagrant plus sudo
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic_vagrant_become_cli')
+
 
 
 
