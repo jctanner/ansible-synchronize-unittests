@@ -45,8 +45,13 @@ with open('task_vars.json', 'wb') as f:
 
 
 class TaskMock(object):
-    args = {'src': u'/tmp/deleteme', 'dest': '/tmp/deleteme'}
+    args = {'src': u'/tmp/deleteme', 
+            'dest': '/tmp/deleteme',
+            'rsync_path': 'rsync'}
     async = None
+    become = None
+    become_user = None
+    become_method = None
 
 class StdinMock(object):
     shell = None
@@ -62,6 +67,7 @@ class PlayContextMock(object):
     private_key_file = None
     become = False
     become_user = 'root'
+    become_method = None
     check_mode = False
     no_log = None
     diff = None
@@ -77,6 +83,7 @@ class SharedLoaderMock(object):
     module_loader = ModuleLoaderMock()    
 
 class SynchronizeTester(object):
+
     task = TaskMock()
     connection = ConnectionMock()
     _play_context = PlayContextMock()
@@ -106,13 +113,22 @@ class SynchronizeTester(object):
                 for k,v in test_meta['play_context'].iteritems():
                     setattr(self._play_context, k, v)
 
+	# load inital task context vars
+        if '_task' in test_meta:
+            if test_meta['_task']:
+                self.task.args = {}
+                for k,v in test_meta['_task'].iteritems():
+                    #import epdb; epdb.st()
+                    setattr(self.task, k, v)
+        #import epdb; epdb.st()
+
 	# load inital task vars
         if 'task_args' in test_meta:
             if test_meta['task_args']:
                 self.task.args = {}
                 for k,v in test_meta['task_args'].iteritems():
                     self.task.args[k] = v
-
+        #import epdb; epdb.st()
 	# load inital task vars
 	invarspath = os.path.join(fixturepath, 
 		test_meta.get('fixtures', {}).get('taskvars_in', 'taskvars_in.json'))
@@ -136,6 +152,7 @@ class SynchronizeTester(object):
             for k,v in test_meta['hostvars'].iteritems():
                 in_task_vars['hostvars'][k] = v
 
+        #import epdb; epdb.st()
 	# initalize and run the module
         SAM = ActionModule(self.task, self.connection, self._play_context, 
                            self.loader, self.templar, self.shared_loader_obj)
@@ -145,6 +162,12 @@ class SynchronizeTester(object):
 	# run assertions
 	for check in test_meta['asserts']:
             value = eval(check)
+            #print(check, value)
+            #if 'path' in check and not value:
+            #    import epdb; epdb.st()
+            if not value:
+                print(check, value)
+                import epdb; epdb.st()
             assert value, check
 
 
@@ -154,9 +177,18 @@ class TestSynchronizeAction(unittest.TestCase):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic')
 
+    def test_basic_become(self):
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic_become')
+
     def test_basic_vagrant(self):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant')
+
+    def test_basic_vagrant_sudo(self):
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic_vagrant_sudo')
+
 
 
 if __name__ == "__main__":
