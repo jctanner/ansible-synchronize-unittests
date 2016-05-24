@@ -10,7 +10,7 @@ fixtures:
     taskvars_out: task_vars_out.json
 connection:
     transport: 'ssh'
-play_context:
+_play_context:
     become: True
     become_method: sudo
     remote_addr: el6host

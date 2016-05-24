@@ -8,7 +8,7 @@ fixtures:
     taskvars_out: task_vars_out.json
 connection:
     transport: 'ssh'
-play_context:
+_play_context:
     become: True
     remote_addr: '127.0.0.1'
     remote_user: vagrant
