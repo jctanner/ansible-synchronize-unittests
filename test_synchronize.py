@@ -20,8 +20,9 @@ import yaml
 
 from deepdiff import DeepDiff
 from pprint import pprint
+from ansible import plugins
+from ansible.compat.tests.mock import patch, MagicMock
 from ansible.plugins.action.synchronize import ActionModule
-#from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
 
 # Getting the incoming and outgoing task vars
 
@@ -94,6 +95,7 @@ class SynchronizeTester(object):
 
     final_task_vars = None
     execute_called = False
+
 
     def _execute_module(self, module_name, task_vars=None):
         self.execute_called = True
@@ -171,8 +173,10 @@ class SynchronizeTester(object):
 
 class TestSynchronizeAction(unittest.TestCase):
 
-    def test_basic(self):
+    @patch.object(plugins, 'connection_loader')
+    def test_basic(self, mock_conn_loader):
         x = SynchronizeTester()
+        mock_conn_loader.whatever = MagicMock()
         x.runtest(fixturepath='fixtures/basic')
 
     def test_basic_become(self):
