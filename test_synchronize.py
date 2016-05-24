@@ -21,6 +21,7 @@ import yaml
 from deepdiff import DeepDiff
 from pprint import pprint
 from ansible import plugins
+import ansible.plugins
 from ansible.compat.tests.mock import patch, MagicMock
 from ansible.plugins.action.synchronize import ActionModule
 
@@ -59,6 +60,7 @@ class StdinMock(object):
 
 class ConnectionMock(object):
     ismock = True
+    _play_context = None
     #transport = 'ssh'
     transport = None
     _new_stdin = StdinMock()
@@ -171,39 +173,50 @@ class SynchronizeTester(object):
             assert value, check
 
 
-def conn_loader_get():
-    import epdb; epdb.st()
+class FakePluginLoader(object):
+    mocked = True
+
+    @staticmethod
+    def get(transport, play_context, new_stdin):
+        conn = ConnectionMock()
+        conn.transport = transport
+        conn._play_context = play_context
+        conn._new_stdin = new_stdin
+        return conn
+
 
 class TestSynchronizeAction(unittest.TestCase):
 
-    @patch.object(plugins, 'connection_loader')
-    def test_basic(self, mock_conn_loader):
-        x = SynchronizeTester()
-        #mock_conn_loader = MagicMock()
-        #mock_conn_loader.get = MagicMock()
-        mock_conn_loader.get = conn_loader_get
-        x.runtest(fixturepath='fixtures/basic')
-        #import epdb; epdb.st()
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
+    def test_basic(self):
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/basic')
+
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_basic_become(self):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_become')
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_basic_become_cli(self):
         # --become on the cli sets _play_context.become
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_become_cli')
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_basic_vagrant(self):
         # simple vagrant example
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant')
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_basic_vagrant_sudo(self):
         # vagrant plus sudo
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant_sudo')
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_basic_vagrant_become_cli(self):
         # vagrant plus sudo
         x = SynchronizeTester()
