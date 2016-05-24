@@ -171,13 +171,19 @@ class SynchronizeTester(object):
             assert value, check
 
 
+def conn_loader_get():
+    import epdb; epdb.st()
+
 class TestSynchronizeAction(unittest.TestCase):
 
     @patch.object(plugins, 'connection_loader')
     def test_basic(self, mock_conn_loader):
         x = SynchronizeTester()
-        mock_conn_loader.whatever = MagicMock()
+        #mock_conn_loader = MagicMock()
+        #mock_conn_loader.get = MagicMock()
+        mock_conn_loader.get = conn_loader_get
         x.runtest(fixturepath='fixtures/basic')
+        #import epdb; epdb.st()
 
     def test_basic_become(self):
         x = SynchronizeTester()
