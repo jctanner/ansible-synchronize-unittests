@@ -8,7 +8,7 @@ hostvars:
     '::1': {}
     'localhost': {}
 asserts:
-    - "not hasattr(SAM._connection, 'ismock')"
+    - "hasattr(SAM._connection, 'ismock')"
     - "SAM._connection.transport == 'local'"
     - "self._play_context.shell == 'sh'"
     - "self.execute_called"
