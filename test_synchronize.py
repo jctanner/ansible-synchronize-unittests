@@ -222,7 +222,19 @@ class TestSynchronizeAction(unittest.TestCase):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/basic_vagrant_become_cli')
 
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
+    def test_delegate_remote(self):
+        # delegate to other remote host
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/delegate_remote')
 
+    """
+    @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
+    def test_delegate_remote_su(self):
+        # delegate to other remote host with su enabled
+        x = SynchronizeTester()
+        x.runtest(fixturepath='fixtures/delegate_remote_su')
+    """
 
 
 if __name__ == "__main__":
