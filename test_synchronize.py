@@ -106,16 +106,21 @@ class SynchronizeTester(object):
     
     def runtest(self, fixturepath='fixtures/basic'):
 
+        #if 'delegate' in fixturepath:
+        #    import epdb; epdb.st()
+
 	metapath = os.path.join(fixturepath, 'meta.yaml')
 	with open(metapath, 'rb') as f:
 	    fdata = f.read()
 	test_meta = yaml.load(fdata)
 
 	# load inital play context vars
-        if 'play_context' in test_meta:
-            if test_meta['play_context']:
+        if '_play_context' in test_meta:
+            if test_meta['_play_context']:
                 self.task.args = {}
-                for k,v in test_meta['play_context'].iteritems():
+                for k,v in test_meta['_play_context'].iteritems():
+                    if v == 'None':
+                        v = None
                     setattr(self._play_context, k, v)
 
 	# load inital task context vars
@@ -158,6 +163,9 @@ class SynchronizeTester(object):
             for k,v in test_meta['hostvars'].iteritems():
                 in_task_vars['hostvars'][k] = v
 
+        #if 'delegate' in fixturepath:
+        #    import epdb; epdb.st()
+
 	# initalize and run the module
         SAM = ActionModule(self.task, self.connection, self._play_context, 
                            self.loader, self.templar, self.shared_loader_obj)
@@ -167,9 +175,9 @@ class SynchronizeTester(object):
 	# run assertions
 	for check in test_meta['asserts']:
             value = eval(check)
-            #if not value:
-            #    print(check, value)
-            #    import epdb; epdb.st()
+            if not value:
+                print(check, value)
+                import epdb; epdb.st()
             assert value, check
 
 
@@ -228,13 +236,11 @@ class TestSynchronizeAction(unittest.TestCase):
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/delegate_remote')
 
-    """
     @patch('ansible.plugins.action.synchronize.connection_loader', FakePluginLoader)
     def test_delegate_remote_su(self):
         # delegate to other remote host with su enabled
         x = SynchronizeTester()
         x.runtest(fixturepath='fixtures/delegate_remote_su')
-    """
 
 
 if __name__ == "__main__":
